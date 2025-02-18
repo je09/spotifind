@@ -1,0 +1,7 @@
+./bin
+.idea
+.vscode/
+_tools/
+.env
+main
+.spotifind.yml
