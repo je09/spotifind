@@ -11,6 +11,8 @@ jobs:
     name: Create Release
     runs-on: ubuntu-latest
     steps:
+    - name: Set up Tar
+      run: apt install tar
     - name: Set up Go
       uses: actions/setup-go@v4
       with: 
