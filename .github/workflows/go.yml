@@ -1,0 +1,55 @@
+on:
+  push:
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+name: Create Release
+
+jobs:
+  build:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with: 
+        go-version: '1.20'
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: Build
+      run: make build
+    - name: Archive bins
+      run: |
+          mkdir -p release
+          for bin in dist/*; do
+            name=$(basename "$bin")
+            tar -czf "release/${name}.tar.gz" -C dist "$name"
+          done
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: binaries
+        path: release/*
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download Binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries
+          path: release
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          generate_release_notes: true
