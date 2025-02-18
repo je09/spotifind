@@ -50,19 +50,20 @@ jobs:
           name: binaries
           path: release
 
-      - name: Create GitHub Release
-        uses: comnoco/create-release-action@v2.0.5
-        env:
-          GITHUB_TOKEN: ${{ secrets.TOKEN }}
-        with:
-          files: release/*
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          body: |
-            Release ${{ github.ref }}
-          draft: false
-          prerelease: false
-  
+      - name: Get Tag Name (For Manual Runs)
+        id: get_tag
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+          else
+            TAG_NAME="manual-$(date +'%Y%m%d-%H%M%S')"
+          fi
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
 
-          
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          files: release/*.zip
+          generate_release_notes: true
           
