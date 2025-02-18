@@ -29,3 +29,5 @@ cli-windowsarm64:
 
 cli-all: cli-darwin64 cli-darwinarm64 cli-linux64 cli-linuxarm64 cli-windows64 cli-windowsarm64
 cli: cli-native cli-all
+
+build: cli
