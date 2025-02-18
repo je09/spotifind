@@ -3,9 +3,9 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/je09/spotifind"
+	"github.com/je09/spotifind/cmd/cli/csv"
 	"math"
-	"spotifind2/pkg/csv"
-	"spotifind2/pkg/spotifind2"
 	"strings"
 	"time"
 )
@@ -15,7 +15,7 @@ const (
 )
 
 type SpotifyHandler struct {
-	spotifind spotifind2.SpotifyAPI
+	spotifind spotifind.SpotifyAPI
 	Csv       csv.CsvHandler
 
 	KnownPlaylists []string
@@ -28,7 +28,7 @@ func NewSpotifyHandler() (*SpotifyHandler, error) {
 	}
 
 	rootCmd.Printf("\r"+Green+"using conf: %s\n"+Reset, configs[0].ClientID)
-	spotifind, err := spotifind2.NewSpotifind(configs[0], false)
+	spotifind, err := spotifind.NewSpotifind(configs[0], false)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +45,7 @@ func (s *SpotifyHandler) Reconnect() error {
 	}
 
 	s.currentConfig++
-	spotifind, err := spotifind2.NewSpotifind(configs[s.currentConfig], false)
+	spotifind, err := spotifind.NewSpotifind(configs[s.currentConfig], false)
 	if err != nil {
 		return err
 	}
@@ -54,7 +54,7 @@ func (s *SpotifyHandler) Reconnect() error {
 	return nil
 }
 
-func (s *SpotifyHandler) PrintFormattedPlaylist(playlist spotifind2.Playlist) {
+func (s *SpotifyHandler) PrintFormattedPlaylist(playlist spotifind.Playlist) {
 	rootCmd.Printf("\r")
 	rootCmd.Printf(
 		Yellow+"\n"+printFormat+Reset,
@@ -66,7 +66,7 @@ func (s *SpotifyHandler) PrintFormattedPlaylist(playlist spotifind2.Playlist) {
 	)
 }
 
-func (s *SpotifyHandler) ProgressBar(pCh spotifind2.ProgressChan) {
+func (s *SpotifyHandler) ProgressBar(pCh spotifind.ProgressChan) {
 	startTime := time.Now()
 
 	for p := range pCh {
@@ -94,13 +94,13 @@ func (s *SpotifyHandler) ProgressBar(pCh spotifind2.ProgressChan) {
 }
 
 func (s *SpotifyHandler) SearchPlaylistAllMarkets(q, ignore []string) {
-	ch := make(spotifind2.SpotifindChan)
-	pCh := make(spotifind2.ProgressChan)
+	ch := make(spotifind.SpotifindChan)
+	pCh := make(spotifind.ProgressChan)
 
 	go func() {
 		for i := 0; i < len(configs); i++ {
 			err := s.spotifind.SearchPlaylistAllMarkets(ch, pCh, q, ignore)
-			if errors.Is(err, spotifind2.ErrTimeout) || errors.Is(err, spotifind2.ErrTokenExpired) {
+			if errors.Is(err, spotifind.ErrTimeout) || errors.Is(err, spotifind.ErrTokenExpired) {
 				if err = s.Reconnect(); err != nil {
 					errHandler(err)
 				}
@@ -116,13 +116,13 @@ func (s *SpotifyHandler) SearchPlaylistAllMarkets(q, ignore []string) {
 }
 
 func (s *SpotifyHandler) SearchPlaylistForMarket(market string, q, ignore []string) {
-	ch := make(spotifind2.SpotifindChan)
-	pCh := make(spotifind2.ProgressChan)
+	ch := make(spotifind.SpotifindChan)
+	pCh := make(spotifind.ProgressChan)
 
 	go func() {
 		for i := 0; i < len(configs); i++ {
 			err := s.spotifind.SearchPlaylistForMarket(ch, pCh, market, q, ignore)
-			if errors.Is(err, spotifind2.ErrTimeout) || errors.Is(err, spotifind2.ErrTokenExpired) {
+			if errors.Is(err, spotifind.ErrTimeout) || errors.Is(err, spotifind.ErrTokenExpired) {
 				if err = s.Reconnect(); err != nil {
 					errHandler(err)
 				}
@@ -138,13 +138,13 @@ func (s *SpotifyHandler) SearchPlaylistForMarket(market string, q, ignore []stri
 }
 
 func (s *SpotifyHandler) SearchPlaylistPopular(q, ignore []string) {
-	ch := make(spotifind2.SpotifindChan)
-	pCh := make(spotifind2.ProgressChan)
+	ch := make(spotifind.SpotifindChan)
+	pCh := make(spotifind.ProgressChan)
 
 	go func() {
 		for i := 0; i < len(configs); i++ {
 			err := s.spotifind.SearchPlaylistPopular(ch, pCh, q, ignore)
-			if errors.Is(err, spotifind2.ErrTimeout) || errors.Is(err, spotifind2.ErrTokenExpired) {
+			if errors.Is(err, spotifind.ErrTimeout) || errors.Is(err, spotifind.ErrTokenExpired) {
 				if err = s.Reconnect(); err != nil {
 					errHandler(err)
 				}
@@ -160,13 +160,13 @@ func (s *SpotifyHandler) SearchPlaylistPopular(q, ignore []string) {
 }
 
 func (s *SpotifyHandler) SearchPlaylistUnpopular(q, ignore []string) {
-	ch := make(spotifind2.SpotifindChan)
-	pCh := make(spotifind2.ProgressChan)
+	ch := make(spotifind.SpotifindChan)
+	pCh := make(spotifind.ProgressChan)
 
 	go func() {
 		for i := 0; i < len(configs); i++ {
 			err := s.spotifind.SearchPlaylistUnpopular(ch, pCh, q, ignore)
-			if errors.Is(err, spotifind2.ErrTimeout) || errors.Is(err, spotifind2.ErrTokenExpired) {
+			if errors.Is(err, spotifind.ErrTimeout) || errors.Is(err, spotifind.ErrTokenExpired) {
 				if err = s.Reconnect(); err != nil {
 					errHandler(err)
 				}
@@ -181,7 +181,7 @@ func (s *SpotifyHandler) SearchPlaylistUnpopular(q, ignore []string) {
 	}
 }
 
-func (s *SpotifyHandler) OutputPlaylist(playlist spotifind2.Playlist) {
+func (s *SpotifyHandler) OutputPlaylist(playlist spotifind.Playlist) {
 	if s.IsPlaylistKnown(playlist.ExternalURLs["spotify"]) {
 		return
 	}

@@ -2,14 +2,14 @@ package main
 
 import (
 	"errors"
+	"github.com/je09/spotifind"
+	"github.com/je09/spotifind/cmd/cli/durationFmt"
 	"os"
-	"spotifind2/internal/cli/durationFmt"
-	"spotifind2/pkg/spotifind2"
 	"time"
 )
 
 func errHandler(err error) {
-	if errors.Is(err, spotifind2.ErrTimeout) {
+	if errors.Is(err, spotifind.ErrTimeout) {
 		rootCmd.Printf(Red + "\ntimeout while searching playlist\n" + Reset)
 		os.Exit(1)
 	}
