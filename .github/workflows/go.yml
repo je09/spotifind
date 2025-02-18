@@ -51,7 +51,7 @@ jobs:
           path: release
 
       - name: Create GitHub Release
-        uses: comnoco/create-release@v2
+        uses: comnoco/create-release-action@v2.0.5
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
         with:
