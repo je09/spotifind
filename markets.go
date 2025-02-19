@@ -2,6 +2,9 @@ package spotifind
 
 import "slices"
 
+// This file contains the list of markets that Spotify supports.
+// All the markets are defined as ISO 3166-1 alpha-2 country codes.
+
 var (
 	marketsPopular = []string{
 		"US", "GB", "DE", "FR", "CA", "AU", "JP", "IT", "NL", "ES", "BR", "IN", "KR",

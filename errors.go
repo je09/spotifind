@@ -6,7 +6,6 @@ import (
 )
 
 var (
-	ErrNoResults    = errors.New("no results found")
 	ErrTimeout      = errors.New("timeout")
 	ErrTokenExpired = errors.New("token expired")
 )

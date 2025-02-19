@@ -15,11 +15,11 @@ import (
 type SpotifindChan chan PlaylistInfo
 type ProgressChan chan Progress
 
+// spotifyPlaylistTrackLimit - max number of tracks official SpotifyAPI can provide.
 const spotifyPlaylistTrackLimit = 1000
 
 type Spotifind struct {
 	auth        *spotifyauth.Authenticator
-	ctx         context.Context
 	client      *spotify.Client
 	limiter     *rate.Limiter
 	errHandling ErrorHandling
@@ -30,20 +30,27 @@ type Spotifind struct {
 
 	totalPlaylists int
 	donePlaylists  int
+
+	ctx context.Context
 }
 
+// NewSpotifind creates a new Spotifind instance.
+// configAuth - Spotify API credentials.
+// retry - if true, the client will retry the request if it fails.
+// Do not use retry, if you wish to implement your own retry logic.
 func NewSpotifind(configAuth SpotifindAuth, retry bool) (*Spotifind, error) {
 	ctx := context.Background()
 
-	creds := &clientcredentials.Config{
+	c := &clientcredentials.Config{
 		ClientID:     configAuth.ClientID,
 		ClientSecret: configAuth.ClientSecret,
 		TokenURL:     spotifyauth.TokenURL,
 	}
-	token, err := creds.Token(ctx)
+	token, err := c.Token(ctx)
 	if err != nil {
 		return nil, err
 	}
+
 	auth := spotifyauth.New(spotifyauth.WithClientID(configAuth.ClientID), spotifyauth.WithClientSecret(configAuth.ClientSecret))
 	httpClient := spotifyauth.New().Client(ctx, token)
 	client := spotify.New(httpClient, spotify.WithRetry(retry))
@@ -57,7 +64,9 @@ func NewSpotifind(configAuth SpotifindAuth, retry bool) (*Spotifind, error) {
 	}, nil
 }
 
-func (s *Spotifind) SearchPlaylistAllMarkets(ch SpotifindChan, p ProgressChan, q, ignore []string) error {
+// SearchPlaylistAllMarkets searches for playlists in all markets Spotify supports.
+// Used it carefully, as it can take a lot of time.
+func (s *Spotifind) SearchPlaylistAllMarkets(ch SpotifindChan, p ProgressChan, q /* queries to search */, ignore []string) error {
 	s.totalPlaylists = len(MarketsAll) * spotifyPlaylistTrackLimit * len(q)
 	for _, query := range q {
 		for _, market := range MarketsAll {
@@ -71,6 +80,9 @@ func (s *Spotifind) SearchPlaylistAllMarkets(ch SpotifindChan, p ProgressChan, q
 	return nil
 }
 
+// SearchPlaylistForMarket searches for playlists in a specific market (note, that Spotify has a limited number of markets).
+// market is a named for the country standardized as ISO 3166-1 alpha-2.
+// ignore is a list of strings to ignore in the playlist name and description.
 func (s *Spotifind) SearchPlaylistForMarket(ch SpotifindChan, p ProgressChan, market string, q, ignore []string) error {
 	s.totalPlaylists = spotifyPlaylistTrackLimit * len(q)
 	for _, query := range q {
@@ -84,6 +96,10 @@ func (s *Spotifind) SearchPlaylistForMarket(ch SpotifindChan, p ProgressChan, ma
 	return nil
 }
 
+// SearchPlaylistPopular searches for playlists in popular markets only.
+// Popular markets include US, GB, DE, FR, etc. Popularity of markets is strictly subjective.
+// Probably, the best option to use, when searching for playlists.
+// ignore is a list of strings to ignore in the playlist name and description.
 func (s *Spotifind) SearchPlaylistPopular(ch SpotifindChan, p ProgressChan, q, ignore []string) error {
 	s.totalPlaylists = len(marketsPopular) * spotifyPlaylistTrackLimit * len(q)
 	for _, query := range q {
@@ -98,6 +114,9 @@ func (s *Spotifind) SearchPlaylistPopular(ch SpotifindChan, p ProgressChan, q, i
 	return nil
 }
 
+// SearchPlaylistUnpopular searches for playlists in unpopular markets only.
+// Unpopular markets are everything except popular markets.
+// ignore is a list of strings to ignore in the playlist name and description.
 func (s *Spotifind) SearchPlaylistUnpopular(ch SpotifindChan, p ProgressChan, q, ignore []string) error {
 	s.totalPlaylists = len(marketsUnpopular) * spotifyPlaylistTrackLimit * len(q)
 
@@ -130,7 +149,9 @@ func (s *Spotifind) searchPlaylists(query, market string) (*spotify.SearchResult
 	return s.client.Search(s.ctx, query, spotify.SearchTypePlaylist, opts...)
 }
 
+// processPlaylists processes the search results and sends them to the channel if there's any contact info.
 func (s *Spotifind) processPlaylists(ch SpotifindChan, p ProgressChan, results *spotify.SearchResult, ignore []string, region string) {
+	// if there are no playlists, we need to skip this market.
 	for results.Playlists != nil {
 		for _, playlist := range results.Playlists.Playlists {
 			s.incrementProgress()
@@ -159,11 +180,15 @@ func (s *Spotifind) processPlaylists(ch SpotifindChan, p ProgressChan, results *
 	}
 }
 
+// checkPlaylistConditions checks if the playlist has any contact info.
+// Criteria for the contact info is described in models.go as searchCriteria string list.
 func (s *Spotifind) checkPlaylistConditions(item spotify.SimplePlaylist, ignore []string) bool {
+	// Playlists owned by Spotify never possess any contact info, and are on the top of the search results.
 	if item.Owner.ID == SpotifyOwnerID {
 		return false
 	}
 
+	// if the playlist has ignore criteria, we need to skip it.
 	for _, criteria := range ignore {
 		if strings.Contains(strings.ToLower(item.Name), criteria) {
 			return false
@@ -173,6 +198,7 @@ func (s *Spotifind) checkPlaylistConditions(item spotify.SimplePlaylist, ignore 
 		}
 	}
 
+	// if the playlist has search criteria, we need to check if it has any contact info.
 	for _, criteria := range searchCriteria {
 		if strings.Contains(strings.ToLower(item.Description), criteria) {
 			return true
@@ -185,13 +211,12 @@ func (s *Spotifind) checkPlaylistConditions(item spotify.SimplePlaylist, ignore 
 	return false
 }
 
+// getContacts gets all the contacts from the playlist description.
+// basically, it tries to extract everything that looks like an email, or instragram, twitter, etc handle.
 func (s *Spotifind) getContacts(item spotify.SimplePlaylist) []string {
-	// get all the lines started from @ from string
 	var res []string
 	for _, line := range strings.Split(item.Description, " ") {
-		// todo add submithub support
 		if strings.Contains(line, "@") {
-			// TODO fix later
 			contact, _ := url.QueryUnescape(line)
 			res = append(res, contact)
 		}
@@ -200,6 +225,7 @@ func (s *Spotifind) getContacts(item spotify.SimplePlaylist) []string {
 	return res
 }
 
+// getArtistsStyles gets all the styles from the artists in the playlist and returns them sorted by genre incidence.
 func (s *Spotifind) getArtistsStyles(artistIDs []spotify.ID) ([]string, error) {
 	styleMap := make(map[string]int)
 
@@ -231,6 +257,7 @@ func (s *Spotifind) getArtistsStyles(artistIDs []spotify.ID) ([]string, error) {
 	return SortStyleMap(styleMap), nil
 }
 
+// getPlaylistStyles gets all the styles from the playlist and returns them sorted by genre incidence.
 func (s *Spotifind) getPlaylistStyles(playlist *spotify.FullPlaylist) ([]string, error) {
 	artistIDs := make([]spotify.ID, 0)
 	for _, track := range playlist.Tracks.Tracks {
@@ -282,6 +309,9 @@ func (s *Spotifind) sendProgressToChannel(ch ProgressChan, found, limit int) {
 	}
 	ch <- s.getProgress()
 }
+
+// probably need to use RWMutex or something like sync.Pool, but I'm just too lazy to rewrite this old code.
+// if it ain't broke, don't fix it. right? =)
 
 func (s *Spotifind) rememberVisitedPlaylist(id string) {
 	s.visitedMutex.Lock()

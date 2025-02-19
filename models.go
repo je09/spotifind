@@ -1,6 +1,10 @@
 package spotifind
 
-// searchCriteria is an idicator, that a playlist has a curator contacts
+const SpotifyOwnerID = "spotify"
+
+// searchCriteria is an indicator, that a playlist probably has a curator contacts.
+// It can be a false positive, if an artist just leaves his handle in there.
+// But it could be idea to contact them, anyway.
 var searchCriteria = []string{
 	"@",
 	"submithub",
@@ -9,8 +13,7 @@ var searchCriteria = []string{
 	"submissions",
 }
 
-const SpotifyOwnerID = "spotify"
-
+// SpotifindAuth - just a set of info that needed to authenticate with Spotify.
 type SpotifindAuth struct {
 	ClientID     string `yaml:"clientId"`
 	ClientSecret string `yaml:"clientSecret"`
