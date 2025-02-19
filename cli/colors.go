@@ -1,4 +1,4 @@
-package main
+package cli
 
 var (
 	Reset  = "\033[0m"

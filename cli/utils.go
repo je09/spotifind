@@ -1,9 +1,9 @@
-package main
+package cli
 
 import (
 	"errors"
 	"github.com/je09/spotifind"
-	"github.com/je09/spotifind/cmd/cli/durationFmt"
+	"github.com/je09/spotifind/cli/durationFmt"
 	"os"
 	"time"
 )

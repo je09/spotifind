@@ -1,10 +1,10 @@
-package main
+package cli
 
 import (
 	"errors"
 	"fmt"
 	"github.com/je09/spotifind"
-	"github.com/je09/spotifind/cmd/cli/csv"
+	"github.com/je09/spotifind/csv"
 	"math"
 	"strings"
 	"time"
@@ -15,7 +15,7 @@ const (
 )
 
 type SpotifyHandler struct {
-	spotifind spotifind.SpotifyAPI
+	spotifind spotifind.Search
 	Csv       csv.CsvHandler
 
 	KnownPlaylists []string
