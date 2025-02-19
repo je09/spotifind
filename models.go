@@ -39,11 +39,16 @@ type Playlist struct {
 	Region         string
 }
 
+// Progress - a struct that contains the total amount of playlists and the amount of playlists that have been scanned.
 type Progress struct {
 	Total int
 	Done  int
 }
 
+// PlaylistInfo - a struct that contains a playlist and progress of the scan.
+// Even though we have a separate channel for progress, in case you don't want
+// to set up a separate goroutine for it, you can use this field.
+// However, the data may be outdated, as it's not updated as fast as the channel.
 type PlaylistInfo struct {
 	Playlist Playlist
 	Progress Progress
