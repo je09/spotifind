@@ -71,8 +71,18 @@ func NewSpotifind(configAuth SpotifindAuth, retry bool) (*Spotifind, error) {
 // Reconnect reconnects to the Spotify API with new app credentials. In case there's a network error.
 // For educational purposes only!
 func (s *Spotifind) Reconnect(configAuth SpotifindAuth) error {
+	c := &clientcredentials.Config{
+		ClientID:     configAuth.ClientID,
+		ClientSecret: configAuth.ClientSecret,
+		TokenURL:     spotifyauth.TokenURL,
+	}
+	token, err := c.Token(s.ctx)
+	if err != nil {
+		return err
+	}
+
 	s.auth = spotifyauth.New(spotifyauth.WithClientID(configAuth.ClientID), spotifyauth.WithClientSecret(configAuth.ClientSecret))
-	httpClient := spotifyauth.New().Client(s.ctx, nil)
+	httpClient := spotifyauth.New().Client(s.ctx, token)
 	s.client = spotify.New(httpClient, spotify.WithRetry(true))
 
 	return nil
