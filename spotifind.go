@@ -119,7 +119,7 @@ func (s *Spotifind) SearchPlaylistAllMarkets(ch SpotifindChan, p ProgressChan, q
 			}
 			s.markMarketAsDone()
 		}
-		s.queriesLeft = s.queriesLeft[1:]
+		s.markQueryAsDone()
 	}
 	close(ch)
 
@@ -142,7 +142,7 @@ func (s *Spotifind) SearchPlaylistForMarket(ch SpotifindChan, p ProgressChan, ma
 		if err != nil {
 			return err
 		}
-		s.queriesLeft = s.queriesLeft[1:]
+		s.markQueryAsDone()
 	}
 	close(ch)
 
@@ -168,7 +168,7 @@ func (s *Spotifind) SearchPlaylistPopular(ch SpotifindChan, p ProgressChan, q, i
 			}
 			s.markMarketAsDone()
 		}
-		s.queriesLeft = s.queriesLeft[1:]
+		s.markQueryAsDone()
 	}
 	close(ch)
 
@@ -193,7 +193,7 @@ func (s *Spotifind) SearchPlaylistUnpopular(ch SpotifindChan, p ProgressChan, q,
 			}
 			s.markMarketAsDone()
 		}
-		s.queriesLeft = s.queriesLeft[1:]
+		s.markQueryAsDone()
 	}
 	close(ch)
 
@@ -430,7 +430,21 @@ func (s *Spotifind) setTotalPlaylists(total int) {
 
 func (s *Spotifind) markMarketAsDone() {
 	s.progressMutex.Lock()
+	if len(s.marketsLeft) == 0 {
+		s.progressMutex.Unlock()
+		return
+	}
 	s.marketsLeft = s.marketsLeft[1:]
+	s.progressMutex.Unlock()
+}
+
+func (s *Spotifind) markQueryAsDone() {
+	s.progressMutex.Lock()
+	if len(s.queriesLeft) == 0 {
+		s.progressMutex.Unlock()
+		return
+	}
+	s.queriesLeft = s.queriesLeft[1:]
 	s.progressMutex.Unlock()
 }
 
