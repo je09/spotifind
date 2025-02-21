@@ -91,7 +91,7 @@ func (s *Spotifind) Reconnect(configAuth SpotifindAuth) error {
 // Continue previous search with the same queries and ignores if there were any errors.
 func (s *Spotifind) Continue(ch SpotifindChan, p ProgressChan) error {
 	for _, query := range s.queriesLeft {
-		for _, market := range marketsUnpopular {
+		for _, market := range s.marketsLeft {
 			if err := s.searchPlaylistForMarket(ch, p, query, market, s.ignores); err != nil {
 				return err
 			}
