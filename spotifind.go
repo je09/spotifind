@@ -31,6 +31,10 @@ type Spotifind struct {
 	totalPlaylists int
 	donePlaylists  int
 
+	marketsLeft []string
+	queriesLeft []string
+	ignores     []string
+
 	ctx context.Context
 }
 
@@ -64,16 +68,48 @@ func NewSpotifind(configAuth SpotifindAuth, retry bool) (*Spotifind, error) {
 	}, nil
 }
 
+// Reconnect reconnects to the Spotify API with new app credentials. In case there's a network error.
+// For educational purposes only!
+func (s *Spotifind) Reconnect(configAuth SpotifindAuth) error {
+	s.auth = spotifyauth.New(spotifyauth.WithClientID(configAuth.ClientID), spotifyauth.WithClientSecret(configAuth.ClientSecret))
+	httpClient := spotifyauth.New().Client(s.ctx, nil)
+	s.client = spotify.New(httpClient, spotify.WithRetry(true))
+
+	return nil
+}
+
+// Continue previous search with the same queries and ignores if there were any errors.
+func (s *Spotifind) Continue(ch SpotifindChan, p ProgressChan) error {
+	for _, query := range s.queriesLeft {
+		for _, market := range marketsUnpopular {
+			if err := s.searchPlaylistForMarket(ch, p, query, market, s.ignores); err != nil {
+				return err
+			}
+		}
+	}
+	close(ch)
+
+	return nil
+}
+
 // SearchPlaylistAllMarkets searches for playlists in all markets Spotify supports.
 // Used it carefully, as it can take a lot of time.
 func (s *Spotifind) SearchPlaylistAllMarkets(ch SpotifindChan, p ProgressChan, q /* queries to search */, ignore []string) error {
+	// For progress bar.
 	s.totalPlaylists = len(MarketsAll) * spotifyPlaylistTrackLimit * len(q)
+
+	// Caching in case of reconnecting.
+	s.marketsLeft = MarketsAll
+	s.queriesLeft = q
+
 	for _, query := range q {
 		for _, market := range MarketsAll {
 			if err := s.searchPlaylistForMarket(ch, p, query, market, ignore); err != nil {
 				return err
 			}
+			s.markMarketAsDone()
 		}
+		s.queriesLeft = s.queriesLeft[1:]
 	}
 	close(ch)
 
@@ -84,12 +120,19 @@ func (s *Spotifind) SearchPlaylistAllMarkets(ch SpotifindChan, p ProgressChan, q
 // market is a named for the country standardized as ISO 3166-1 alpha-2.
 // ignore is a list of strings to ignore in the playlist name and description.
 func (s *Spotifind) SearchPlaylistForMarket(ch SpotifindChan, p ProgressChan, market string, q, ignore []string) error {
+	// For progress bar.
 	s.totalPlaylists = spotifyPlaylistTrackLimit * len(q)
+
+	// Caching in case of reconnecting.
+	s.marketsLeft = []string{market}
+	s.queriesLeft = q
+
 	for _, query := range q {
 		err := s.searchPlaylistForMarket(ch, p, query, market, ignore)
 		if err != nil {
 			return err
 		}
+		s.queriesLeft = s.queriesLeft[1:]
 	}
 	close(ch)
 
@@ -101,13 +144,21 @@ func (s *Spotifind) SearchPlaylistForMarket(ch SpotifindChan, p ProgressChan, ma
 // Probably, the best option to use, when searching for playlists.
 // ignore is a list of strings to ignore in the playlist name and description.
 func (s *Spotifind) SearchPlaylistPopular(ch SpotifindChan, p ProgressChan, q, ignore []string) error {
+	// For progress bar.
 	s.totalPlaylists = len(marketsPopular) * spotifyPlaylistTrackLimit * len(q)
+
+	// Caching in case of reconnecting.
+	s.marketsLeft = marketsPopular
+	s.queriesLeft = q
+
 	for _, query := range q {
 		for _, market := range marketsPopular {
 			if err := s.searchPlaylistForMarket(ch, p, query, market, ignore); err != nil {
 				return err
 			}
+			s.markMarketAsDone()
 		}
+		s.queriesLeft = s.queriesLeft[1:]
 	}
 	close(ch)
 
@@ -118,14 +169,21 @@ func (s *Spotifind) SearchPlaylistPopular(ch SpotifindChan, p ProgressChan, q, i
 // Unpopular markets are everything except popular markets.
 // ignore is a list of strings to ignore in the playlist name and description.
 func (s *Spotifind) SearchPlaylistUnpopular(ch SpotifindChan, p ProgressChan, q, ignore []string) error {
+	// For progress bar.
 	s.totalPlaylists = len(marketsUnpopular) * spotifyPlaylistTrackLimit * len(q)
+
+	// Caching in case of reconnecting.
+	s.marketsLeft = marketsUnpopular
+	s.queriesLeft = q
 
 	for _, query := range q {
 		for _, market := range marketsUnpopular {
 			if err := s.searchPlaylistForMarket(ch, p, query, market, ignore); err != nil {
 				return err
 			}
+			s.markMarketAsDone()
 		}
+		s.queriesLeft = s.queriesLeft[1:]
 	}
 	close(ch)
 
@@ -133,6 +191,8 @@ func (s *Spotifind) SearchPlaylistUnpopular(ch SpotifindChan, p ProgressChan, q,
 }
 
 func (s *Spotifind) searchPlaylistForMarket(ch SpotifindChan, p ProgressChan, q, market string, ignore []string) error {
+	s.ignores = ignore
+
 	res, err := s.searchPlaylists(q, market)
 	if err != nil {
 		return s.errHandling.Handle(err)
@@ -355,6 +415,12 @@ func (s *Spotifind) incrementProgress() {
 func (s *Spotifind) setTotalPlaylists(total int) {
 	s.progressMutex.Lock()
 	s.totalPlaylists = total
+	s.progressMutex.Unlock()
+}
+
+func (s *Spotifind) markMarketAsDone() {
+	s.progressMutex.Lock()
+	s.marketsLeft = s.marketsLeft[1:]
 	s.progressMutex.Unlock()
 }
 
