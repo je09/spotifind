@@ -137,7 +137,9 @@ func (s *Spotifind) searchPlaylistForMarket(ch SpotifindChan, p ProgressChan, q,
 	if err != nil {
 		return s.errHandling.Handle(err)
 	}
-	s.processPlaylists(ch, p, res, ignore, market)
+	if err = s.processPlaylists(ch, p, res, ignore, market); err != nil {
+		return s.errHandling.Handle(err)
+	}
 
 	return nil
 }
@@ -150,7 +152,7 @@ func (s *Spotifind) searchPlaylists(query, market string) (*spotify.SearchResult
 }
 
 // processPlaylists processes the search results and sends them to the channel if there's any contact info.
-func (s *Spotifind) processPlaylists(ch SpotifindChan, p ProgressChan, results *spotify.SearchResult, ignore []string, region string) {
+func (s *Spotifind) processPlaylists(ch SpotifindChan, p ProgressChan, results *spotify.SearchResult, ignore []string, region string) error {
 	// if there are no playlists, we need to skip this market.
 	for results.Playlists != nil {
 		for _, playlist := range results.Playlists.Playlists {
@@ -163,7 +165,9 @@ func (s *Spotifind) processPlaylists(ch SpotifindChan, p ProgressChan, results *
 				continue
 			}
 
-			s.sendPlaylistToChannel(ch, playlist, region)
+			if err := s.sendPlaylistToChannel(ch, playlist, region); err != nil {
+				return err
+			}
 			s.rememberVisitedPlaylist(playlist.ID.String())
 		}
 		// for some reason next doesn't stop it
@@ -178,6 +182,8 @@ func (s *Spotifind) processPlaylists(ch SpotifindChan, p ProgressChan, results *
 		// skip this market
 		s.sendProgressToChannel(p, 0, 1000)
 	}
+
+	return nil
 }
 
 // checkPlaylistConditions checks if the playlist has any contact info.
@@ -281,11 +287,17 @@ func (s *Spotifind) getPlaylistInfo(id spotify.ID) (*spotify.FullPlaylist, error
 	return s.client.GetPlaylist(s.ctx, id, opts...)
 }
 
-func (s *Spotifind) sendPlaylistToChannel(ch SpotifindChan, item spotify.SimplePlaylist, region string) {
+func (s *Spotifind) sendPlaylistToChannel(ch SpotifindChan, item spotify.SimplePlaylist, region string) error {
 	contacts := s.getContacts(item)
 
-	playlistInfo, _ := s.getPlaylistInfo(item.ID)
-	styles, _ := s.getPlaylistStyles(playlistInfo)
+	playlistInfo, err := s.getPlaylistInfo(item.ID)
+	if err != nil {
+		return err
+	}
+	styles, err := s.getPlaylistStyles(playlistInfo)
+	if err != nil {
+		return err
+	}
 	ch <- PlaylistInfo{
 		Playlist: Playlist{
 			ID:            item.ID.String(),
@@ -305,6 +317,8 @@ func (s *Spotifind) sendPlaylistToChannel(ch SpotifindChan, item spotify.SimpleP
 		},
 		Progress: s.getProgress(),
 	}
+
+	return nil
 }
 
 func (s *Spotifind) sendProgressToChannel(ch ProgressChan, found, limit int) {
@@ -351,6 +365,11 @@ func (s *Spotifind) getProgress() Progress {
 	done = s.donePlaylists
 	total = s.totalPlaylists
 	s.progressMutex.Unlock()
+
+	// It's a hack mostly, but it works.
+	if done > total {
+		total = done
+	}
 
 	return Progress{
 		Done:  done,
