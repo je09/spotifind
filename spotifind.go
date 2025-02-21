@@ -343,6 +343,10 @@ func (s *Spotifind) getPlaylistStyles(playlist *spotify.FullPlaylist) ([]string,
 	artistIDs := make([]spotify.ID, 0)
 	for _, track := range playlist.Tracks.Tracks {
 		for _, artist := range track.Track.Artists {
+			if artist.ID == "" {
+				continue
+			}
+
 			artistIDs = append(artistIDs, artist.ID)
 		}
 	}
