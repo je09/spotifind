@@ -234,8 +234,19 @@ func (s *Spotifind) processPlaylists(ch SpotifindChan, p ProgressChan, results *
 			if s.hasVisitedPlaylist(playlist.ID.String()) {
 				continue
 			}
+			playlistInfo, err := s.getPlaylistInfo(playlist.ID)
+			if err != nil {
+				return err
+			}
+			styles, err := s.getPlaylistStyles(playlistInfo)
+			if err != nil {
+				return err
+			}
+			if !s.checkStyleConditions(styles, ignore) {
+				continue
+			}
 
-			if err := s.sendPlaylistToChannel(ch, playlist, region); err != nil {
+			if err := s.sendPlaylistToChannel(ch, playlistInfo, styles, region); err != nil {
 				return err
 			}
 			s.rememberVisitedPlaylist(playlist.ID.String())
@@ -290,6 +301,20 @@ func (s *Spotifind) checkPlaylistConditions(item spotify.SimplePlaylist, ignore 
 	}
 
 	return false
+}
+
+// checkStyleConditions checks if the playlist's styles match the ignore criteria.
+// If the playlist has any of the ignore criteria, we need to skip it.
+func (s *Spotifind) checkStyleConditions(styles, ignore []string) bool {
+	for _, style := range styles {
+		for _, criteria := range ignore {
+			if strings.Contains(strings.ToLower(style), criteria) {
+				return false
+			}
+		}
+	}
+
+	return true
 }
 
 // getContacts gets all the contacts from the playlist description.
@@ -361,17 +386,9 @@ func (s *Spotifind) getPlaylistInfo(id spotify.ID) (*spotify.FullPlaylist, error
 	return s.client.GetPlaylist(s.ctx, id, opts...)
 }
 
-func (s *Spotifind) sendPlaylistToChannel(ch SpotifindChan, item spotify.SimplePlaylist, region string) error {
-	contacts := s.getContacts(item)
+func (s *Spotifind) sendPlaylistToChannel(ch SpotifindChan, item *spotify.FullPlaylist, styles []string, region string) error {
+	contacts := s.getContacts(item.SimplePlaylist)
 
-	playlistInfo, err := s.getPlaylistInfo(item.ID)
-	if err != nil {
-		return err
-	}
-	styles, err := s.getPlaylistStyles(playlistInfo)
-	if err != nil {
-		return err
-	}
 	ch <- PlaylistInfo{
 		Playlist: Playlist{
 			ID:            item.ID.String(),
@@ -384,7 +401,7 @@ func (s *Spotifind) sendPlaylistToChannel(ch SpotifindChan, item spotify.SimpleP
 				DisplayName: item.Owner.DisplayName,
 			},
 			TracksTotal:    int(item.Tracks.Total),
-			FollowersTotal: int(playlistInfo.Followers.Count),
+			FollowersTotal: int(item.Followers.Count),
 			Contacts:       contacts,
 			Styles:         styles,
 			Region:         region,
