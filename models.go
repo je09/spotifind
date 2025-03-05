@@ -11,6 +11,7 @@ var searchCriteria = []string{
 	"sbmt",
 	"submit",
 	"submissions",
+	"ko-fi",
 }
 
 // SpotifindAuth - just a set of info that needed to authenticate with Spotify.
