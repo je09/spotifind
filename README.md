@@ -3,6 +3,8 @@ Spotifind is a Go-based library designed to search Spotify playlists for contact
 It extracts contact information and musical styles from playlists, providing a comprehensive overview of the playlists' content.
 Works pretty similar to paid services like PlaylistSupply and Distrokid's playlist engine, but free and open-source.
 
+If you're looking for the app, you need to go [here](https://github.com/je09/spotifind-app)
+
 ## Features
 - **Search Playlists**: Search for playlists based on specific criteria.
 - **Extract Contacts**: Extract contact information from playlist descriptions.
