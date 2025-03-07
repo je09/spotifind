@@ -278,15 +278,13 @@ func (s *Spotifind) checkPlaylistConditions(item spotify.SimplePlaylist, ignore 
 	// if the playlist has ignore criteria, we need to skip it.
 	for _, criteria := range ignore {
 		// Ignore empty strings.
-		if criteria == "" {
-			continue
-		}
-
-		if strings.Contains(strings.ToLower(item.Name), criteria) {
-			return false
-		}
-		if strings.Contains(strings.ToLower(item.Description), criteria) {
-			return false
+		if criteria != "" {
+			if strings.Contains(strings.ToLower(item.Name), criteria) {
+				return false
+			}
+			if strings.Contains(strings.ToLower(item.Description), criteria) {
+				return false
+			}
 		}
 	}
 
