@@ -22,6 +22,13 @@ func (e *ErrorHandling) Handle(err error) error {
 		return ErrTokenExpired
 	}
 
+	// HACK: This is a workaround for the error message "com.spotify.hermes.service.RequestTimeoutException: Request timed out"
+	// it feels like it needs to be retry instead, but I'm not sure rn, and it kinda breaks the scan at the moment.
+	// TODO: Investigate further.
+	if strings.Contains(strings.ToLower(err.Error()), "timeout") {
+		return ErrTimeout
+	}
+
 	switch err.Error() {
 	case "spotify: couldn't decode error: (17) [Too many requests]":
 		return ErrTimeout
